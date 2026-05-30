@@ -5,7 +5,7 @@ from google.genai import types
 import sounddevice as sd
 from openwakeword.model import Model
 from DB_client import update_part
-
+import hardhat_module.voiceCamera as cam
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
@@ -93,10 +93,7 @@ recording_duration = 5 # seconds
 sample_rate = 16000
 wake_threshold = 0.3
 chunk_size = 1280 # 1280 samples at 16kHz = 80ms
-gemini_temp = 0.1 # low temp = more predictable, safer for robotics control
-
-def detect_code():
-    return
+gemini_temp = 0.1 # low temp = more predictable, safer for robotics control 
 
 def listen_for_wake_word():
     print("Waiting for 'Hey Jarvis'...")
@@ -111,10 +108,9 @@ def listen_for_wake_word():
             audio_flat = audio_chunk.flatten()
             prediction = oww_model.predict(audio_flat)
             score = prediction.get("hey_jarvis", 0.0)
-            print(f"Wake word score: {score:.3f}")
-
             if score>wake_threshold:
-                detect_code()
+                print("Wake Word Activated!")
+                print(cam.getSerialNum())
                 oww_model.reset()  # prevent multiple triggers
                 return
 
@@ -127,3 +123,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+cam.capture.release()

@@ -1,16 +1,5 @@
-import cv2
-import time
+import voiceCamera as cam
 
-capture = cv2.VideoCapture(1)
+result = cam.getSerialNum()
 
-status, img = capture.read()
-
-initTime = time.time()
-
-while( time.time() - initTime < 1 ):
-    status, img = capture.read()
-
-if status:
-    cv2.imwrite("capture.png", img)
-
-capture.release()
+cam.capture.release()
