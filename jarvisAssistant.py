@@ -38,13 +38,8 @@ def listen_for_wake_word():
 
 
 def main():
-    genai_client = genai.Client(api_key=api_key)
     while True:
         listen_for_wake_word()
-        print("Wake word detected! Listening for command...")
-        # Here you would add code to record the user's command and send it to Gemini for processing
-        # For example, you could use the same sounddevice library to record a short audio clip
-        # Then you would send that audio to Gemini and get a response, which you could use to control your robot
 
 
 if __name__ == "__main__":
