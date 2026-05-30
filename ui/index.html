@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#EB0A1E" />
+    <title>QR Inspection Control | TMMC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="topbar-brand">
+          <img src="/assets/tic-banner.png" alt="Toyota Innovation Challenge" class="brand-logo" />
+          <div>
+            <p class="brand-eyebrow">Toyota Motor Manufacturing Canada</p>
+            <h1>QR Inspection Control System</h1>
+          </div>
+        </div>
+        <div class="topbar-meta">
+          <span class="connection" id="connection-status">Connecting…</span>
+          <button class="btn btn-secondary" id="refresh-btn" type="button">Refresh Data</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <nav class="sidebar" aria-label="Main navigation">
+          <button class="nav-item active" type="button" data-view="overview">Overview</button>
+          <button class="nav-item" type="button" data-view="metrics">Metrics &amp; Reports</button>
+          <button class="nav-item" type="button" data-view="registry">QR Registry</button>
+        </nav>
+
+        <main class="main">
+          <!-- OVERVIEW -->
+          <section class="view active" id="view-overview" aria-label="Overview">
+            <div class="view-header">
+              <h2>Production Overview</h2>
+              <p>Current QR code classification status for robotic arm allocation</p>
+            </div>
+
+            <div class="kpi-row">
+              <article class="kpi-card">
+                <span class="kpi-label">Total QR Codes</span>
+                <span class="kpi-value" id="kpi-total">—</span>
+              </article>
+              <article class="kpi-card kpi-good">
+                <span class="kpi-label">Good Parts</span>
+                <span class="kpi-value" id="kpi-good">—</span>
+                <span class="kpi-sub" id="kpi-good-pct">—</span>
+              </article>
+              <article class="kpi-card kpi-bad">
+                <span class="kpi-label">Defective / Critical</span>
+                <span class="kpi-value" id="kpi-bad">—</span>
+                <span class="kpi-sub" id="kpi-bad-pct">—</span>
+              </article>
+              <article class="kpi-card">
+                <span class="kpi-label">Pending Inspection</span>
+                <span class="kpi-value" id="kpi-pending">—</span>
+                <span class="kpi-sub" id="kpi-pending-pct">—</span>
+              </article>
+            </div>
+
+            <div class="panel-grid">
+              <article class="panel">
+                <div class="panel-title">
+                  <h3>Quality Rate</h3>
+                </div>
+                <div class="gauge-wrap">
+                  <svg class="gauge" viewBox="0 0 120 70" aria-hidden="true">
+                    <path class="gauge-track" d="M 10 60 A 50 50 0 0 1 110 60" />
+                    <path class="gauge-fill" id="gauge-fill" d="M 10 60 A 50 50 0 0 1 110 60" />
+                  </svg>
+                  <span class="gauge-value" id="quality-rate">0%</span>
+                  <span class="gauge-caption">Passed / Total Registered</span>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-title">
+                  <h3>Status Summary</h3>
+                </div>
+                <div class="bar-chart" id="overview-bars"></div>
+              </article>
+            </div>
+
+            <article class="panel panel-scroll">
+              <div class="panel-title">
+                <h3>Recent Registry Snapshot</h3>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>QR ID</th>
+                      <th>Code</th>
+                      <th>Classification</th>
+                      <th>Arm Routing</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-table-body"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <!-- METRICS -->
+          <section class="view" id="view-metrics" aria-label="Metrics and reports">
+            <div class="view-header">
+              <h2>Metrics &amp; Reports</h2>
+              <p>Inspection breakdown by classification type</p>
+            </div>
+
+            <div class="metrics-scroll">
+              <article class="panel">
+                <div class="panel-title">
+                  <h3>Classification Distribution</h3>
+                </div>
+                <div class="metrics-split">
+                  <div class="donut-wrap">
+                    <svg class="donut" viewBox="0 0 100 100" id="donut-chart"></svg>
+                    <div class="donut-center">
+                      <span id="donut-total">0</span>
+                      <small>Total</small>
+                    </div>
+                  </div>
+                  <ul class="legend" id="donut-legend"></ul>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-title">
+                  <h3>Percentage Breakdown</h3>
+                </div>
+                <div class="table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Classification</th>
+                        <th>Count</th>
+                        <th>Share</th>
+                        <th>Visual</th>
+                      </tr>
+                    </thead>
+                    <tbody id="pct-table-body"></tbody>
+                  </table>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-title">
+                  <h3>Full Registry Report</h3>
+                </div>
+                <div class="table-wrap table-wrap-tall">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>QR Code</th>
+                        <th>Status</th>
+                        <th>Good</th>
+                        <th>Defective</th>
+                        <th>Last Known</th>
+                      </tr>
+                    </thead>
+                    <tbody id="report-table-body"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <!-- REGISTRY -->
+          <section class="view" id="view-registry" aria-label="QR registry">
+            <div class="view-header">
+              <h2>QR Registry Management</h2>
+              <p>Reassign classifications. Changes sync to the Raspberry Pi controller.</p>
+            </div>
+
+            <article class="panel toolbar-panel">
+              <form class="registry-form" id="add-form">
+                <div class="form-field">
+                  <label for="new-qr">QR Code</label>
+                  <input id="new-qr" type="text" placeholder="e.g. 4 or QR-TYT-00004" required />
+                </div>
+                <div class="form-field">
+                  <label for="new-status">Classification</label>
+                  <select id="new-status">
+                    <option value="passed">Good</option>
+                    <option value="defect">Defective</option>
+                    <option value="critical">Critical</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary" type="submit">Apply</button>
+              </form>
+            </article>
+
+            <article class="panel panel-scroll">
+              <div class="panel-title">
+                <h3>Active Mappings</h3>
+              </div>
+              <div class="table-wrap table-wrap-tall">
+                <table class="data-table data-table-editable">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>QR Code</th>
+                      <th>Current Status</th>
+                      <th>Reassign To</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="registry-table-body"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+
+      <footer class="statusbar">
+        <span id="status-message">Awaiting server connection</span>
+        <span>Toyota Innovation Challenge · Line Control</span>
+      </footer>
+    </div>
+
+    <div class="notice" id="notice" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
