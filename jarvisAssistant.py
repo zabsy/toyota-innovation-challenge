@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 import sounddevice as sd
 from openwakeword.model import Model
-from DB_client import update_part
+from DB.DB_client import update_part
 import hardhat_module.voiceCamera as cam
 
 load_dotenv()
