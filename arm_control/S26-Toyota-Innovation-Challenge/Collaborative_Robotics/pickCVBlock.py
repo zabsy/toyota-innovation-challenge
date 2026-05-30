@@ -22,6 +22,7 @@ import lib.DobotDllType as dType
 import numpy as np
 import cv2
 import time
+from pyzbar import pyzbar
 
 
 """CONSTANTS"""
@@ -30,6 +31,8 @@ Z_SAFE = 40 #what is the clearance distance for the robot arm to avoid collision
 Z_PICK = -25 #what is the  height for the robot claw to successfully pick up the target?
 STABILITY_LIMIT = 60  #how many consecutive frames of stable detection before we "lock in" the positions and move to the next phase? (at 30fps, 60 frames is about 2 seconds)
 PIXEL_TOLERANCE = 10  #object can move at most this # of pixels to be considered stationary
+QR_TARGET_VALUE = "3"  # QR code value that identifies a pick target
+QR_MISS_TOLERANCE = 10  # how many consecutive empty frames to forgive before resetting QR stability (handles pyzbar flicker)
 
 machine_state = "scanning plate" 
 
@@ -63,6 +66,8 @@ def pixel_to_robot(u, v, H):
 def next_state():
     global machine_state
     if machine_state == "scanning plate":
+        machine_state = "scanning qr"
+    elif machine_state == "scanning qr":
         machine_state = "scanning target"
     elif machine_state == "scanning target":
         machine_state = "pick place"
@@ -180,15 +185,87 @@ def phase_detect_targets():
 
 
 # ---------------------------------------------------------
+# PHASE 2a: QR GATE
+# Acts as a trigger/gate: waits until a QR code whose value == QR_TARGET_VALUE
+# is steadily in view, then unlocks the next phase. Does NOT produce pick
+# coordinates — the actual targets are found in phase_detect_targets().
+# ---------------------------------------------------------
+def phase_qr_gate():
+    print(f"\n[PHASE 2a] Waiting for QR gate (value == '{QR_TARGET_VALUE}')...")
+    stability_counter = 0
+    miss_counter = 0
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            continue
+
+        frame = cv2.remap(frame, map1, map2, cv2.INTER_LINEAR)
+        display_frame = frame.copy()
+
+        found_match = False
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        barcodes = pyzbar.decode(gray)
+
+        for barcode in barcodes:
+            if barcode.type != "QRCODE":
+                continue
+            decoded = barcode.data.decode("utf-8")
+            pts_int = np.array([[p.x, p.y] for p in barcode.polygon], dtype=int)
+            cx = int(np.mean(pts_int[:, 0]))
+            cy = int(np.mean(pts_int[:, 1]))
+            cv2.polylines(display_frame, [pts_int], True,
+                          (0, 255, 0) if decoded == QR_TARGET_VALUE else (0, 0, 255), 2)
+            cv2.putText(display_frame, f"QR: {decoded}", (cx, cy - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            if decoded == QR_TARGET_VALUE:
+                found_match = True
+
+        # --- STABILITY LOGIC (tolerant to flicker) ---
+        # pyzbar occasionally drops a frame even when the QR is steady in view.
+        # Forgive up to QR_MISS_TOLERANCE consecutive empty frames before resetting,
+        # so a brief dropout doesn't wipe out accumulated progress.
+        if found_match:
+            miss_counter = 0
+            stability_counter += 1
+        else:
+            miss_counter += 1
+            if miss_counter > QR_MISS_TOLERANCE:
+                stability_counter = 0
+
+        progress = int((stability_counter / STABILITY_LIMIT) * 100)
+        color = (0, 255, 0) if progress < 100 else (255, 255, 0)
+        cv2.putText(display_frame, f"QR GATE '{QR_TARGET_VALUE}': {progress}%", (20, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        cv2.imshow("Detection", display_frame)
+        cv2.waitKey(1)
+
+        if stability_counter >= STABILITY_LIMIT:
+            print(f"[SUCCESS] QR gate '{QR_TARGET_VALUE}' confirmed. Proceeding to target scan.")
+            return True
+
+
+# ---------------------------------------------------------
 # PHASE 3: PICK/PLACE LOOP
 # This function assumes 1 drop zone only has 1 part, and executes the pick/place operations in batches.
 # if you are picking up rigid car parts, would you still be able to move directly to the object and to the drop zone? 
 # Do you need collision avoidance? Think about if the robot gripper accidentally hits the plate or other parts on the way to the target, what would happen? How would you modify the robot's movement logic to avoid collisions?
 # ---------------------------------------------------------
+def refresh_feed(label=""):
+    # Pump one camera frame to the window so it stays responsive during
+    # blocking robot moves (OpenCV only repaints when waitKey is called).
+    ret, frame = cap.read()
+    if ret:
+        frame = cv2.remap(frame, map1, map2, cv2.INTER_LINEAR)
+        if label:
+            cv2.putText(frame, label, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+        cv2.imshow("Detection", frame)
+    cv2.waitKey(1)
+
+
 def phase_execute_batch(api, pick_list, drop_list):
-    cv2.VideoCapture(1)
     time.sleep(0.5)
-    
+
     if len(pick_list) == 0 or len(drop_list) == 0:
         print("missing targets, aborting")
         return False
@@ -202,20 +279,26 @@ def phase_execute_batch(api, pick_list, drop_list):
         drop_x, drop_y = drop_list[i]
 
         print(f"Task {i+1}: Moving {pick_x, pick_y} to {drop_x, drop_y}")
+        status = f"PICK/PLACE {i+1}/{batch_size}"
 
         # --- PICK SEQUENCE ---
+        refresh_feed(status)
         dobotArm.move_to_xyz(api, pick_x, pick_y, Z_SAFE)
+        refresh_feed(status)
         dobotArm.move_to_xyz(api, pick_x, pick_y, Z_PICK)
         #optional alternate function call method to include a rotation of the gripper angle
-        #dobotArm.move_to_xyz(api, pick_x, pick_y, Z_SAFE, 45) 
+        #dobotArm.move_to_xyz(api, pick_x, pick_y, Z_SAFE, 45)
 
         dobotArm.close_gripper(api)
+        refresh_feed(status)
         dobotArm.move_to_xyz(api, pick_x, pick_y, Z_SAFE)
 
         # --- PLACE SEQUENCE ---
+        refresh_feed(status)
         dobotArm.move_to_xyz(api, drop_x, drop_y, Z_SAFE)
         dobotArm.open_gripper(api)
         dobotArm.stop_pump(api)
+        refresh_feed(status)
         dobotArm.move_to_xyz(api, drop_x, drop_y, Z_SAFE)
 
     # irl, it is ok for 1 dish to contain multiple parts
@@ -250,6 +333,11 @@ dobotArm.stop_pump(api)
 while machine_state == "scanning plate":
     drop_zone = phase_detect_plates()
     if drop_zone is not None:
+        next_state()
+
+
+while machine_state == "scanning qr":
+    if phase_qr_gate():
         next_state()
 
 
