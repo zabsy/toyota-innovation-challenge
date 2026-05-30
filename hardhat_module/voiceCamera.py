@@ -1,7 +1,7 @@
 import cv2
 import time
 
-capture = cv2.VideoCapture(1)
+capture = cv2.VideoCapture(0)
 MIN_CONTOUR_AREA = 500
 
 qrs = cv2.QRCodeDetector()
