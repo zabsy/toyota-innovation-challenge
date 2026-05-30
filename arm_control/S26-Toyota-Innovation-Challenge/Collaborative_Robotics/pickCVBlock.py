@@ -36,9 +36,9 @@ machine_state = "scanning plate"
 # --- INITIALIZATION FOR CAMERA TRANSFORMATION ---
 # MAKE SURE THAT YOU HAVE RAN calibrateCamera.py FIRST TO GENERATE THE camera_params.npz FILE
 api = dType.load()
-cap = cv2.VideoCapture(0)
-H_matrix = np.load("HomographyMatrix.npy")
-data = np.load("./camera_params.npz")
+cap = cv2.VideoCapture(1)
+H_matrix = np.load(r"toyota-innovation-challenge\arm_control\S26-Toyota-Innovation-Challenge\Collaborative_Robotics\HomographyMatrix.npy")
+data = np.load(r"toyota-innovation-challenge\arm_control\S26-Toyota-Innovation-Challenge\Collaborative_Robotics\camera_params.npz")
 camera_matrix = data["camera_matrix"]
 dist_coeffs   = data["dist_coeffs"]
 
@@ -144,7 +144,7 @@ def phase_detect_targets():
 
         current_list = []
         for cnt in contours:
-            if cv2.contourArea(cnt) > 800:
+            if cv2.contourArea(cnt) > 100:
                 M = cv2.moments(cnt)
                 if M["m00"] != 0:
                     cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
@@ -186,7 +186,7 @@ def phase_detect_targets():
 # Do you need collision avoidance? Think about if the robot gripper accidentally hits the plate or other parts on the way to the target, what would happen? How would you modify the robot's movement logic to avoid collisions?
 # ---------------------------------------------------------
 def phase_execute_batch(api, pick_list, drop_list):
-    cv2.VideoCapture(0)
+    cv2.VideoCapture(1)
     time.sleep(0.5)
     
     if len(pick_list) == 0 or len(drop_list) == 0:
