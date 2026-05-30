@@ -18,7 +18,7 @@ import requests
 # It will look something like 192.168.1.42
 LAPTOP_IP   = "10.36.183.59"
 PORT        = 5050
-BASE_URL    = f"http://{10.36.183.59}:{PORT}"
+BASE_URL    = f"http://{LAPTOP_IP}:{PORT}"
 # ─────────────────────────────────────────────────────────────────
  
  
