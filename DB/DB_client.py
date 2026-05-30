@@ -16,7 +16,7 @@ import requests
 # ── Set this to your laptop's local IP address ───────────────────
 # Find it with: ipconfig (Windows) | ifconfig or ip a (Mac/Linux)
 # It will look something like 192.168.1.42
-LAPTOP_IP   = "10.36.183.59"
+LAPTOP_IP   = "172.20.10.5"
 PORT        = 5050
 BASE_URL    = f"http://{LAPTOP_IP}:{PORT}"
 # ─────────────────────────────────────────────────────────────────
