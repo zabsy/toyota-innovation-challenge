@@ -22,7 +22,7 @@ if not cam.isOpened():
     print("Camera failed to open")
     exit()
  
-data = np.load(r"toyota-innovation-challenge\arm_control\S26-Toyota-Innovation-Challenge\Collaborative_Robotics\camera_params.npz")
+data = np.load("arm_control\\S26-Toyota-Innovation-Challenge\\Collaborative_Robotics\\camera_params.npz")
 camera_matrix = data["camera_matrix"]
 dist_coeffs   = data["dist_coeffs"]
  

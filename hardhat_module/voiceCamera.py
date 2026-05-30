@@ -1,28 +1,72 @@
 import cv2
+import time
 
 capture = cv2.VideoCapture(1)
 
+MAX_CONTOUR_AREA = 12000
+MIN_CONTOUR_AREA = 500
+
 qrs = cv2.QRCodeDetector()
 
-while True:
+def detectQRs(imageMat):
+    if imageMat is None or imageMat.size == 0:
+        raise cv2.error
+    if imageMat.shape[0] < 20 or imageMat.shape[1] < 20:
+        raise cv2.error
+    
+    try:
+        data, bounds, straightened = qrs.detectAndDecode(imageMat)
+        if data:
+            return int(data)
+        else:
+            raise cv2.error
+    except cv2.error:
+        return -1
+
+def getSerialNum():
     status, img = capture.read()
 
-    if not status:
-        break
+    initTime = time.time()
 
-    data, bounds, straightened = qrs.detectAndDecode(img)
+    while( time.time() - initTime < 0.5 ):
+        status, img = capture.read()
 
-    if data:
-        print(data)
+    if status:
+        grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    if bounds is not None:
-        corners = bounds.astype(int)
-        cv2.polylines(img, corners, True, color=(255,255,0), thickness=2)
+        _, binImg = cv2.threshold(grayImg, 225, 255, cv2.THRESH_BINARY)
 
-    cv2.imshow("QR Code", img)
+        contours, _ = cv2.findContours(binImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        filtered = []
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+
+            if MIN_CONTOUR_AREA < area < MAX_CONTOUR_AREA:
+                filtered.append(contour)
+
+        # if bounds is not None:
+        #     corners = bounds.astype(int)
+        #     cv2.polylines(img, corners, True, color=(255,255,0), thickness=2)
+
+        PAD = 5
+
+        for sample in filtered:
+            x, y, w, h = cv2.boundingRect(sample)
+
+            if w < 10 or h < 10:
+                continue
+
+            x1 = max(x - PAD, 0)
+            y1 = max(y - PAD, 0)
+            x2 = min(x + w + PAD, img.shape[1])
+            y2 = min(y + h + PAD, img.shape[0])
+
+            roi = img[y1:y2, x1:x2]
+
+            return detectQRs(roi)
+
+            # cv2.rectangle(img, (x, y), (x+w, y+h), color=(255, 255, 0), thickness=2)
 
 capture.release()
-cv2.destroyAllWindows()
