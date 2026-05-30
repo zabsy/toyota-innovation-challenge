@@ -2,8 +2,6 @@ import cv2
 import time
 
 capture = cv2.VideoCapture(1)
-
-MAX_CONTOUR_AREA = 12000
 MIN_CONTOUR_AREA = 500
 
 qrs = cv2.QRCodeDetector()
@@ -16,6 +14,7 @@ def detectQRs(imageMat):
     
     try:
         data, bounds, straightened = qrs.detectAndDecode(imageMat)
+        cv2.imwrite("capture.png", imageMat)
         if data:
             return int(data)
         else:
@@ -43,7 +42,7 @@ def getSerialNum():
         for contour in contours:
             area = cv2.contourArea(contour)
 
-            if MIN_CONTOUR_AREA < area < MAX_CONTOUR_AREA:
+            if MIN_CONTOUR_AREA < area:
                 filtered.append(contour)
 
         # if bounds is not None:
@@ -65,8 +64,8 @@ def getSerialNum():
 
             roi = img[y1:y2, x1:x2]
 
-            return detectQRs(roi)
+            serial = detectQRs(roi)
+            if serial is not None and serial > 0:
+                return serial
 
             # cv2.rectangle(img, (x, y), (x+w, y+h), color=(255, 255, 0), thickness=2)
-
-capture.release()
