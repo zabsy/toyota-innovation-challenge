@@ -65,7 +65,7 @@ def getSerialNum():
             roi = img[y1:y2, x1:x2]
 
             serial = detectQRs(roi)
-            if serial is not None and serial > 0:
+            if serial is not None:
                 return serial
 
             # cv2.rectangle(img, (x, y), (x+w, y+h), color=(255, 255, 0), thickness=2)
