@@ -1,15 +1,15 @@
 {
   "parts": {
-    "QR-TYT-00001": {
+    "1": {
       "status": "passed"
     },
-    "QR-TYT-00002": {
+    "2": {
       "status": "defect"
     },
-    "QR-TYT-00003": {
+    "3": {
       "status": "critical"
     },
-    "QR-TYT-00004": {
+    "3": {
       "status": "pending"
     }
   }

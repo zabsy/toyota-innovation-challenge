@@ -16,7 +16,7 @@ def detectQRs(imageMat):
         data, bounds, straightened = qrs.detectAndDecode(imageMat)
         cv2.imwrite("capture.png", imageMat)
         if data:
-            return int(data)
+            return str(data)
         else:
             raise cv2.error
     except cv2.error:
