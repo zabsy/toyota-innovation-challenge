@@ -9,7 +9,7 @@ import hardhat_module.voiceCamera as cam
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
-oww_model = Model(wakeword_models=["hey_jarvis"], inference_framework="onnx")
+oww_model = Model(wakeword_model_paths=["/home/yota/.local/lib/python3.13/site-packages/openwakeword/resources/models/hey_jarvis_v0.1.onnx"])
 
 GEMINI_PROMPT = """
 You are an onboard manufacturing assistant operating in a Toyota production environment.
@@ -107,10 +107,12 @@ def listen_for_wake_word():
             audio_chunk,_ = stream.read(chunk_size)
             audio_flat = audio_chunk.flatten()
             prediction = oww_model.predict(audio_flat)
-            score = prediction.get("hey_jarvis", 0.0)
+            score = prediction.get("hey_jarvis_v0.1", 0.0)
             if score>wake_threshold:
                 print("Wake Word Activated!")
-                print(cam.getSerialNum())
+                candidate = cam.getSerialNum()
+                if candidate is not None and int(candidate) < 0:
+                    update_part(candidate, "defect")
                 oww_model.reset()  # prevent multiple triggers
                 return
 
