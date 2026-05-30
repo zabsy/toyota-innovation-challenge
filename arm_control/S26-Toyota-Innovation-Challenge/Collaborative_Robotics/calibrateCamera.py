@@ -11,7 +11,8 @@ BOARD_ROWS = 4          # number of marker rows
 MARKER_LENGTH = 0.0706  # ArUco marker side in metres
 MARKER_SEP = 0.0072     # separation between markers in metres
 ARUCO_DICT_ID = cv2.aruco.DICT_4X4_250
-CAMERA_INDEX = 1        # webcam index (0 = default)
+CAMERA_INDEX = 0 
+       # webcam index (0 = default)
 MIN_VALID_FRAMES = 40   # increased from 30 - more frames = better calibration
 OUTPUT_FILE = "camera_params.npz"
 MIN_MARKERS = 5         # slightly stricter - reduces noisy frames early
