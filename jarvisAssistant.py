@@ -4,6 +4,7 @@ from google import genai
 from google.genai import types
 import sounddevice as sd
 from openwakeword.model import Model
+from db_client import update_part
 
 
 load_dotenv()
