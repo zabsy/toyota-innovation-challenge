@@ -11,8 +11,6 @@
   --text-muted: #8a8d8f;
   --good: #2d6a4f;
   --bad: #eb0a1e;
-  --critical: #7f1d1d;
-  --pending: #58595b;
   --header-h: 80px;
   --sidebar-w: 220px;
   --statusbar-h: 28px;
@@ -189,7 +187,7 @@ body {
 /* ── KPI cards ── */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -369,20 +367,12 @@ body {
   transition: width 0.35s ease;
 }
 
-.bar-fill.passed {
+.bar-fill.good {
   background: var(--good);
 }
 
-.bar-fill.defect {
+.bar-fill.defective {
   background: var(--bad);
-}
-
-.bar-fill.critical {
-  background: var(--critical);
-}
-
-.bar-fill.pending {
-  background: var(--pending);
 }
 
 .bar-count {
@@ -517,28 +507,16 @@ body {
   border: 1px solid;
 }
 
-.tag.passed {
+.tag.good {
   color: var(--good);
   border-color: var(--good);
   background: rgba(45, 106, 79, 0.08);
 }
 
-.tag.defect {
+.tag.defective {
   color: var(--bad);
   border-color: var(--bad);
   background: rgba(235, 10, 30, 0.06);
-}
-
-.tag.critical {
-  color: var(--critical);
-  border-color: var(--critical);
-  background: rgba(127, 29, 29, 0.08);
-}
-
-.tag.pending {
-  color: var(--pending);
-  border-color: var(--pending);
-  background: rgba(88, 89, 91, 0.08);
 }
 
 /* ── Registry ── */

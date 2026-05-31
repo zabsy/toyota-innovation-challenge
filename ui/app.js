@@ -1,17 +1,14 @@
 const API_BASE = window.location.origin;
 
+// Mirrors the backend's VALID_STATUSES in DB/DB_server.py — keep in sync.
 const STATUS_OPTIONS = [
-  { value: "passed", label: "Good", color: "#2d6a4f" },
-  { value: "defect", label: "Defective", color: "#eb0a1e" },
-  { value: "critical", label: "Critical", color: "#7f1d1d" },
-  { value: "pending", label: "Pending", color: "#58595b" },
+  { value: "good", label: "Good", color: "#2d6a4f" },
+  { value: "defective", label: "Defective", color: "#eb0a1e" },
 ];
 
 const ROUTING = {
-  passed: "Accept — Good Bin",
-  defect: "Reject — Defect Bin",
-  critical: "Reject — Hold",
-  pending: "Hold — Inspection",
+  good: "Accept — Good Bin",
+  defective: "Reject — Defect Bin",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -37,10 +34,8 @@ const els = {
   kpiTotal: $("kpi-total"),
   kpiGood: $("kpi-good"),
   kpiBad: $("kpi-bad"),
-  kpiPending: $("kpi-pending"),
   kpiGoodPct: $("kpi-good-pct"),
   kpiBadPct: $("kpi-bad-pct"),
-  kpiPendingPct: $("kpi-pending-pct"),
 };
 
 let parts = {};
@@ -74,22 +69,20 @@ function showNotice(msg) {
 }
 
 function computeMetrics(items) {
-  const counts = { passed: 0, defect: 0, critical: 0, pending: 0 };
+  const counts = { good: 0, defective: 0 };
   const entries = Object.values(items);
 
   entries.forEach((part) => {
     const s = statusOf(part);
     if (counts[s] !== undefined) counts[s] += 1;
-    else counts.pending += 1;
   });
 
   const total = entries.length || 0;
-  const good = counts.passed;
-  const bad = counts.defect + counts.critical;
-  const pending = counts.pending;
+  const good = counts.good;
+  const bad = counts.defective;
   const pct = (n) => (total ? ((n / total) * 100).toFixed(1) : "0.0");
 
-  return { counts, total, good, bad, pending, pct };
+  return { counts, total, good, bad, pct };
 }
 
 function tagHtml(status) {
@@ -108,10 +101,8 @@ function renderKpis(m) {
   els.kpiTotal.textContent = m.total;
   els.kpiGood.textContent = m.good;
   els.kpiBad.textContent = m.bad;
-  els.kpiPending.textContent = m.pending;
   els.kpiGoodPct.textContent = `${m.pct(m.good)}% of total`;
   els.kpiBadPct.textContent = `${m.pct(m.bad)}% of total`;
-  els.kpiPendingPct.textContent = `${m.pct(m.pending)}% of total`;
 
   const rate = m.total ? (m.good / m.total) * 100 : 0;
   els.qualityRate.textContent = `${rate.toFixed(1)}%`;
@@ -219,8 +210,8 @@ function renderReportTable(items) {
         <td>${qrNumber(code)}</td>
         <td>${code}</td>
         <td>${tagHtml(s)}</td>
-        <td>${s === "passed" ? "Yes" : "—"}</td>
-        <td>${s === "defect" || s === "critical" ? "Yes" : "—"}</td>
+        <td>${s === "good" ? "Yes" : "—"}</td>
+        <td>${s === "defective" ? "Yes" : "—"}</td>
         <td>${ts}</td>
       </tr>`;
     })
@@ -244,6 +235,7 @@ function renderRegistryTable(items) {
         <td>${buildSelect(s, code)}</td>
         <td class="cell-actions">
           <button class="btn btn-primary btn-sm save-btn" type="button" data-qr="${code}">Save</button>
+          <button class="btn btn-secondary btn-sm delete-btn" type="button" data-qr="${code}">Delete</button>
         </td>
       </tr>`;
     })
@@ -273,7 +265,7 @@ async function fetchParts() {
   els.connection.textContent = "Connected";
   els.connection.classList.add("online");
   els.statusMsg.textContent = lastUpdated
-    ? `Last sync: ${new Date(lastUpdated).toLocaleString()} · Raspberry Pi polling /sync`
+    ? `Last change: ${new Date(lastUpdated).toLocaleString()} · Pi reads live on each QR scan`
     : "Connected to production server";
 }
 
@@ -287,10 +279,23 @@ async function savePart(qrCode, status) {
   if (!res.ok) throw new Error(payload.error || "Save failed");
 
   const key = payload.qr_code || qrCode;
-  parts[key] = payload;
-  lastUpdated = payload.last_updated || lastUpdated;
+  parts[key] = { status: payload.status };
+  lastUpdated = Date.now();
   renderAll();
-  showNotice(`${key} updated to ${payload.label}. Controller will sync on next poll.`);
+  showNotice(`${key} set to ${labelFor(payload.status)}. Controller will sync on next poll.`);
+}
+
+async function deletePart(qrCode) {
+  const res = await fetch(`${API_BASE}/part/${encodeURIComponent(qrCode)}`, {
+    method: "DELETE",
+  });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(payload.error || "Delete failed");
+
+  delete parts[qrCode];
+  lastUpdated = Date.now();
+  renderAll();
+  showNotice(`${qrCode} removed from the registry. Controller will sync on next poll.`);
 }
 
 /* Navigation */
@@ -304,20 +309,39 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
 });
 
 els.registryTable.addEventListener("click", async (e) => {
-  const btn = e.target.closest(".save-btn");
-  if (!btn) return;
+  const saveBtn = e.target.closest(".save-btn");
+  const deleteBtn = e.target.closest(".delete-btn");
 
-  const qr = btn.dataset.qr;
-  const select = els.registryTable.querySelector(`select[data-qr="${qr}"]`);
-  if (!select) return;
+  if (saveBtn) {
+    const qr = saveBtn.dataset.qr;
+    const select = els.registryTable.querySelector(`select[data-qr="${qr}"]`);
+    if (!select) return;
 
-  btn.disabled = true;
-  try {
-    await savePart(qr, select.value);
-  } catch (err) {
-    showNotice(err.message);
-  } finally {
-    btn.disabled = false;
+    saveBtn.disabled = true;
+    try {
+      await savePart(qr, select.value);
+    } catch (err) {
+      showNotice(err.message);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  } else if (deleteBtn) {
+    const qr = deleteBtn.dataset.qr;
+    if (
+      !confirm(
+        `Delete ${qr} from the registry?\nThe robotic arm will no longer have a mapping for this QR code.`
+      )
+    ) {
+      return;
+    }
+
+    deleteBtn.disabled = true;
+    try {
+      await deletePart(qr);
+    } catch (err) {
+      showNotice(err.message);
+      deleteBtn.disabled = false;
+    }
   }
 });
 
