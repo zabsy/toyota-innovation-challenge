@@ -27,11 +27,12 @@ def getSerialNum():
 
     initTime = time.time()
 
-    while time.time() - initTime < 0.5:
+    while time.time() - initTime < 2:
         status, img = capture.read()
 
+    print(f"camera status: {status}, img shape: {img.shape if status else 'none'}")
+
     if status:
-        img = cv2.convertScaleAbs(img, alpha=0.75, beta=1.25)
         grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         _, binImg = cv2.threshold(grayImg, 200, 255, cv2.THRESH_BINARY)
@@ -48,6 +49,8 @@ def getSerialNum():
             area = cv2.contourArea(contour)
             if MIN_CONTOUR_AREA < area:
                 filtered.append(contour)
+
+        print(f"total contours: {len(contours)}, filtered: {len(filtered)}")
 
         PAD = 5
 
