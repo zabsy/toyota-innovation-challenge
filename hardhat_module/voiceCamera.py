@@ -8,9 +8,9 @@ qrs = cv2.QRCodeDetector()
 
 def detectQRs(imageMat):
     if imageMat is None or imageMat.size == 0:
-        raise cv2.error
+        return -1
     if imageMat.shape[0] < 20 or imageMat.shape[1] < 20:
-        raise cv2.error
+        return -1
     
     try:
         data, bounds, straightened = qrs.detectAndDecode(imageMat)
@@ -18,7 +18,7 @@ def detectQRs(imageMat):
         if data:
             return str(data)
         else:
-            raise cv2.error
+            return -1
     except cv2.error:
         return -1
 
@@ -27,13 +27,15 @@ def getSerialNum():
 
     initTime = time.time()
 
-    while( time.time() - initTime < 0.5 ):
+    while time.time() - initTime < 0.5:
         status, img = capture.read()
+
+    print(f"camera status: {status}, img shape: {img.shape if status else 'none'}")
 
     if status:
         grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        _, binImg = cv2.threshold(grayImg, 225, 255, cv2.THRESH_BINARY)
+        _, binImg = cv2.threshold(grayImg, 200, 255, cv2.THRESH_BINARY)
 
         contours, _ = cv2.findContours(binImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -41,13 +43,10 @@ def getSerialNum():
 
         for contour in contours:
             area = cv2.contourArea(contour)
-
             if MIN_CONTOUR_AREA < area:
                 filtered.append(contour)
 
-        # if bounds is not None:
-        #     corners = bounds.astype(int)
-        #     cv2.polylines(img, corners, True, color=(255,255,0), thickness=2)
+        print(f"total contours: {len(contours)}, filtered: {len(filtered)}")
 
         PAD = 5
 
@@ -65,7 +64,6 @@ def getSerialNum():
             roi = img[y1:y2, x1:x2]
 
             serial = detectQRs(roi)
-            if serial is not None:
+            print(f"serial result: {serial}")
+            if serial != -1:
                 return serial
-
-            # cv2.rectangle(img, (x, y), (x+w, y+h), color=(255, 255, 0), thickness=2)
