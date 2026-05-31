@@ -114,6 +114,7 @@ def listen_for_wake_word():
                 print("Wake Word Activated!")
                 candidate = cam.getSerialNum()
                 if candidate is not None and int(candidate) > 0:
+                    print(candidate)
                     update_part(candidate, "defect")
                 oww_model.reset()  # prevent multiple triggers
                 return

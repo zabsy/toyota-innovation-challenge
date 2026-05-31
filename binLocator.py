@@ -1,0 +1,1 @@
+# We use CCTags to locate the xy coords of each bin that we care about
