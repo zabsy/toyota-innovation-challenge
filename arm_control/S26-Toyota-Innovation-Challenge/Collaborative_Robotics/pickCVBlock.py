@@ -40,8 +40,8 @@ machine_state = "scanning plate"
 # MAKE SURE THAT YOU HAVE RAN calibrateCamera.py FIRST TO GENERATE THE camera_params.npz FILE
 api = dType.load()
 cap = cv2.VideoCapture(1)
-H_matrix = np.load(r"toyota-innovation-challenge\arm_control\S26-Toyota-Innovation-Challenge\Collaborative_Robotics\HomographyMatrix.npy")
-data = np.load(r"toyota-innovation-challenge\arm_control\S26-Toyota-Innovation-Challenge\Collaborative_Robotics\camera_params.npz")
+H_matrix = np.load(r"arm_control\S26-Toyota-Innovation-Challenge\Collaborative_Robotics\HomographyMatrix.npy")
+data = np.load(r"arm_control\S26-Toyota-Innovation-Challenge\Collaborative_Robotics\camera_params.npz")
 camera_matrix = data["camera_matrix"]
 dist_coeffs   = data["dist_coeffs"]
 
