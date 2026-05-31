@@ -27,7 +27,7 @@ def getSerialNum():
 
     initTime = time.time()
 
-    while time.time() - initTime < 1.5:
+    while time.time() - initTime < 2:
         status, img = capture.read()
 
     print(f"camera status: {status}, img shape: {img.shape if status else 'none'}")
@@ -40,8 +40,8 @@ def getSerialNum():
         contours, _ = cv2.findContours(binImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         cv2.imwrite("output.png", img)
-        cv2.imwrite("outputGray.png", img)
-        cv2.imwrite("outputBin.png", img)
+        cv2.imwrite("outputGray.png", grayImg)
+        cv2.imwrite("outputBin.png", binImg)
 
         filtered = []
 
