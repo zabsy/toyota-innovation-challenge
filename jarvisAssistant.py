@@ -17,7 +17,7 @@ import hardhat_module.voiceCamera as cam
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
-oww_model = Model(wakeword_model_paths=["/home/yota/.local/lib/python3.13/site-packages/openwakeword/resources/models/hey_jarvis_v0.1.onnx"])
+oww_model = Model(wakeword_models=["hey_jarvis"], inference_framework="onnx")
 whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
 
 
@@ -44,13 +44,13 @@ def listen_for_wake_word():
             audio_chunk,_ = stream.read(chunk_size)
             audio_flat = audio_chunk.flatten()
             prediction = oww_model.predict(audio_flat)
-            score = prediction.get("hey_jarvis_v0.1", 0.0)
+            score = prediction.get("hey_jarvis", 0.0)
             if score>wake_threshold:
                 print("Wake Word Activated!")
                 oww_model.reset()  # prevent multiple triggers
                 return
 
-def record_audio(silence_duration=1.5, max_duration=10):
+def record_audio(silence_duration=0.6, max_duration=10):
     vad = webrtcvad.Vad(2)  # Aggressiveness mode (0-3)
 
     frame_ms = 30  # Frame size in ms (10, 20, or 30)
@@ -73,11 +73,18 @@ def record_audio(silence_duration=1.5, max_duration=10):
         for _ in range(max_frames):
             audio_chunk, _ = stream.read(frame_size)
             audio_flat = audio_chunk.flatten()
+            frames.append(audio_flat)
+
+
             is_speech = vad.is_speech(audio_flat.tobytes(), sample_rate)
 
             if is_speech:
                 silence_counter = 0
                 speech_started = True
+
+            if speech_started:         
+                frames.append(audio_flat)
+                    
             elif speech_started:
                 silence_counter += 1
                 if silence_counter >= silent_frames:
