@@ -16,8 +16,19 @@ from flask import Flask, request, jsonify
 import json
 from pathlib import Path
  
-app = Flask(__name__)
+# Serve the dashboard (ui/) from this same server so the frontend and the API
+# share one origin — the UI fetches /parts, /part, etc. from window.location.origin.
+UI_DIR = Path(__file__).parent.parent / "ui"
+app = Flask(__name__, static_folder=str(UI_DIR), static_url_path="")
 DB_PATH = Path(__file__).parent / "parts_db.json"
+
+
+# ── GET / ────────────────────────────────────────────────────────
+# Serves the dashboard UI (ui/index.html). Static assets (app.js,
+# styles.css, assets/…) are served automatically from UI_DIR.
+@app.route("/")
+def index():
+    return app.send_static_file("index.html")
  
 VALID_STATUSES = {"good", "defective"}
  
