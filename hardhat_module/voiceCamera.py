@@ -64,6 +64,5 @@ def getSerialNum():
             roi = img[y1:y2, x1:x2]
 
             serial = detectQRs(roi)
-            print(f"serial result: {serial}")
             if serial != -1:
                 return serial
