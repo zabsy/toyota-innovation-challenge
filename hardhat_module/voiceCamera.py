@@ -27,7 +27,7 @@ def getSerialNum():
 
     initTime = time.time()
 
-    while time.time() - initTime < 2:
+    while time.time() - initTime < 0.5:
         status, img = capture.read()
 
     print(f"camera status: {status}, img shape: {img.shape if status else 'none'}")
