@@ -31,7 +31,7 @@ def getSerialNum():
         status, img = capture.read()
 
     if status:
-        img = cv2.convertScaleAbs(img, alpha=0.5, beta=0)
+        img = cv2.convertScaleAbs(img, alpha=0.75, beta=1.25)
         grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         _, binImg = cv2.threshold(grayImg, 200, 255, cv2.THRESH_BINARY)
