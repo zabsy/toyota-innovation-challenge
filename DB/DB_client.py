@@ -35,7 +35,7 @@ def update_part(qr_code: str, status: str) -> bool:
             timeout=5
         )
         if response.status_code == 200:
-            print(f"[DB] Updated {qr_code} → {status}")
+            print(f"[DB] Updated {qr_code} -> {status}")
             return True
         else:
             print(f"[DB] Server error: {response.json()}")

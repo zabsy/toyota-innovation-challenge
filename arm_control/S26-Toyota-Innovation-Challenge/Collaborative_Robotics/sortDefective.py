@@ -75,24 +75,21 @@ def pixel_to_robot(u, v, H):
 # DATABASE LOOKUP (localhost)
 # Returns the status string ("good" / "defective"), or None if the part is not
 # in the DB or the server can't be reached. None is treated as "good" upstream.
-# Results are cached per-QR so we don't hammer the server every frame.
+# Read fresh every time so live updates from the Raspi are reflected immediately.
 # ---------------------------------------------------------
-_status_cache = {}
-
 def get_status(qr_code):
-    if qr_code in _status_cache:
-        return _status_cache[qr_code]
     try:
         resp = requests.get(f"{DB_BASE_URL}/part/{qr_code}", timeout=DB_TIMEOUT)
-        status = resp.json().get("status") if resp.status_code == 200 else None
+        if resp.status_code == 200:
+            return resp.json().get("status")
+        return None  # 404 not found -> unknown -> treat as good
     except requests.exceptions.RequestException as e:
         print(f"[DB] lookup failed for {qr_code}: {e}")
-        status = None
-    _status_cache[qr_code] = status
-    return status
+        return None
 
 
-# State machine: scanning tray -> scanning qr -> scanning target -> pick place
+# State machine: the tray is detected ONCE at startup, then phases 2->3->4 repeat
+# forever (pick place loops back to scanning qr, NOT back to tray detection).
 def next_state():
     global machine_state
     if machine_state == "scanning tray":
@@ -102,9 +99,9 @@ def next_state():
     elif machine_state == "scanning target":
         machine_state = "pick place"
     elif machine_state == "pick place":
-        machine_state = "scanning tray"
+        machine_state = "scanning qr"
     else:
-        machine_state = "scanning tray"
+        machine_state = "scanning qr"
 
 
 # ---------------------------------------------------------
@@ -323,8 +320,11 @@ def phase_execute_batch(api, pick_list, drop_list):
 
 # ---------------------------------------------------------
 # MAIN EXECUTION
-# Same sequential state-machine structure as the original.
+# Detect the tray once, then loop phases 2->3->4 forever with a short pause
+# after each placement. Runs until you kill it from the terminal (Ctrl+C).
 # ---------------------------------------------------------
+POST_PLACE_DELAY = 5  # seconds to wait after a placement before scanning again
+
 dobotArm.initialize_robot(api)
 dobotArm.open_gripper(api)
 dobotArm.stop_pump(api)
@@ -332,26 +332,35 @@ dobotArm.stop_pump(api)
 tray_zone = None
 red_targets = None
 
-while machine_state == "scanning tray":
-    tray_zone = phase_detect_tray()
-    if tray_zone is not None:
-        next_state()
+try:
+    # --- PHASE 1: detect the tray once ---
+    while machine_state == "scanning tray":
+        tray_zone = phase_detect_tray()
+        if tray_zone is not None:
+            next_state()
 
-while machine_state == "scanning qr":
-    if phase_qr_gate():
-        next_state()
+    # --- PHASES 2->3->4 repeat until killed ---
+    while True:
+        # PHASE 2: wait for a defective part (QR gate)
+        if machine_state == "scanning qr":
+            if phase_qr_gate():
+                next_state()
 
-while machine_state == "scanning target":
-    red_targets = phase_detect_targets()
-    if red_targets is not None:
-        next_state()
+        # PHASE 3: detect the red target
+        if machine_state == "scanning target":
+            red_targets = phase_detect_targets()
+            if red_targets is not None:
+                next_state()
 
-while machine_state == "pick place":
-    completed = phase_execute_batch(api, red_targets, tray_zone)
-    if completed:
-        next_state()
-    else:
-        break
+        # PHASE 4: pick the target and drop it in the tray
+        if machine_state == "pick place":
+            phase_execute_batch(api, red_targets, tray_zone)
+            print(f"\nWaiting {POST_PLACE_DELAY}s before scanning the next part...")
+            time.sleep(POST_PLACE_DELAY)
+            next_state()  # back to scanning qr
 
-cap.release()
-cv2.destroyAllWindows()
+except KeyboardInterrupt:
+    print("\n[SORTER] Stopped by user.")
+finally:
+    cap.release()
+    cv2.destroyAllWindows()

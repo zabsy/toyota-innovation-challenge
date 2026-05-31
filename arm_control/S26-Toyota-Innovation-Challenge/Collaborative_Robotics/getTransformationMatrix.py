@@ -33,6 +33,8 @@ map1, map2 = cv2.initUndistortRectifyMap(
 
 api = dType.load()
 
+RETREAT_POS = (150, -120, 80)
+
 robot_points = np.array([
     [200,-80], [230,-80], [260,-80],
     [200,-40], [230,-40], [260,-40],
@@ -108,7 +110,7 @@ def collect_calibration():
 
         # Move robot away so camera can see the surface clearly
         print("Moving robot away...")
-        dobotArm.move_to_xyz(api, 200, 0, 80)
+        dobotArm.move_to_xyz(api, *RETREAT_POS)
 
         print("Place RED sticker where the tip was.")
         print("Press SPACE to save the point, or R to redo.")
@@ -159,7 +161,7 @@ def collect_calibration():
                     cv2.imshow("Calibration", disp2)
                     if cv2.waitKey(1) & 0xFF == 32:
                         break
-                dobotArm.move_to_xyz(api, 200, 0, 80)
+                dobotArm.move_to_xyz(api, *RETREAT_POS)
                 print("  Place sticker again and press SPACE to save.")
 
             if key == 32 and detected is not None:

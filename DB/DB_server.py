@@ -76,7 +76,7 @@ def upsert_part():
     db["parts"][qr_code] = {"status": status}
     save_db(db)
  
-    print(f"[DB] {qr_code} → {status}")
+    print(f"[DB] {qr_code} -> {status}")
     return jsonify({"qr_code": qr_code, "status": status}), 200
  
  
