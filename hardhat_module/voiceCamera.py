@@ -39,6 +39,10 @@ def getSerialNum():
 
         contours, _ = cv2.findContours(binImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        cv2.imwrite("output.png", img)
+        cv2.imwrite("outputGray.png", img)
+        cv2.imwrite("outputBin.png", img)
+
         filtered = []
 
         for contour in contours:
