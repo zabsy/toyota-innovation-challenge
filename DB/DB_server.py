@@ -1,7 +1,8 @@
 """
 server.py — runs on the LAPTOP
 Receives HTTP requests from the Raspberry Pi and reads/writes parts_db.json.
-Your jarvisAssistant.py reads parts_db.json directly from disk (same machine).
+The database file lives at DB/parts_db.json, right next to this server
+(created automatically on the first write — see DB_PATH below).
  
 Start with:
     pip install flask
@@ -16,9 +17,9 @@ import json
 from pathlib import Path
  
 app = Flask(__name__)
-DB_PATH = Path("parts_db.json")
+DB_PATH = Path(__file__).parent / "parts_db.json"
  
-VALID_STATUSES = {"passed", "defect", "critical", "pending"}
+VALID_STATUSES = {"good", "defective"}
  
  
 def load_db() -> dict:
@@ -47,7 +48,7 @@ def get_part(qr_code):
  
 # ── POST /part ───────────────────────────────────────────────────
 # Creates or updates a part entry.
-# Body: { "qr_code": "QR-TYT-00005", "status": "defect" }
+# Body: { "qr_code": "QR-TYT-00005", "status": "defective" }
 @app.route("/part", methods=["POST"])
 def upsert_part():
     data = request.get_json()
@@ -68,6 +69,22 @@ def upsert_part():
     return jsonify({"qr_code": qr_code, "status": status}), 200
  
  
+# ── DELETE /part/<qr_code> ───────────────────────────────────────
+# Deletes a part entry.
+# Example: DELETE http://laptop-ip:5050/part/QR-TYT-00005
+@app.route("/part/<qr_code>", methods=["DELETE"])
+def delete_part(qr_code):
+    db = load_db()
+    if qr_code not in db["parts"]:
+        return jsonify({"error": "Part not found"}), 404
+
+    del db["parts"][qr_code]
+    save_db(db)
+
+    print(f"[DB] Deleted {qr_code}")
+    return jsonify({"deleted": qr_code}), 200
+
+
 # ── GET /parts ───────────────────────────────────────────────────
 # Returns the full database.
 @app.route("/parts", methods=["GET"])

@@ -6,9 +6,9 @@ Import this into your jarvisAssistant.py on the Raspi.
 Usage:
     from db_client import update_part, get_part
  
-    update_part("QR-TYT-00005", "defect")
+    update_part("QR-TYT-00005", "defective")
     part = get_part("QR-TYT-00005")
-    print(part["status"])  # "defect"
+    print(part["status"])  # "defective"
 """
  
 import requests
@@ -25,7 +25,7 @@ BASE_URL    = f"http://{LAPTOP_IP}:{PORT}"
 def update_part(qr_code: str, status: str) -> bool:
     """
     Create or update a part entry on the laptop database.
-    status must be: "passed", "defect", "critical", or "pending"
+    status must be: "good" or "defective"
     Returns True on success, False on failure.
     """
     try:
@@ -63,6 +63,27 @@ def get_part(qr_code: str) -> dict | None:
         return None
  
  
+def delete_part(qr_code: str) -> bool:
+    """
+    Delete a part entry from the laptop database.
+    Returns True on success, False if the part was not found or on failure.
+    """
+    try:
+        response = requests.delete(f"{BASE_URL}/part/{qr_code}", timeout=5)
+        if response.status_code == 200:
+            print(f"[DB] Deleted {qr_code}")
+            return True
+        else:
+            print(f"[DB] Server error: {response.json()}")
+            return False
+    except requests.exceptions.ConnectionError:
+        print(f"[DB] ERROR: Could not reach laptop at {BASE_URL}. Check IP and that server.py is running.")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"[DB] ERROR: Request timed out.")
+        return False
+
+
 def get_all_parts() -> dict:
     """
     Fetch the full database from the laptop.

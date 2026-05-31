@@ -4,6 +4,8 @@ from google import genai
 from google.genai import types
 import sounddevice as sd
 from openwakeword.model import Model
+# Talks to the parts database over HTTP via DB/DB_client.py (the Raspberry Pi side).
+# The actual data lives in DB/parts_db.json on the laptop, managed by DB/DB_server.py.
 from DB.DB_client import update_part
 import hardhat_module.voiceCamera as cam
 
