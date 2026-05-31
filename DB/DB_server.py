@@ -1,169 +1,82 @@
 """
-DB_server.py — runs on the LAPTOP
-Receives HTTP requests from the Raspberry Pi and mobile UI, reads/writes parts_db.json.
-
+server.py — runs on the LAPTOP
+Receives HTTP requests from the Raspberry Pi and reads/writes parts_db.json.
+Your jarvisAssistant.py reads parts_db.json directly from disk (same machine).
+ 
 Start with:
-    pip install -r requirements.txt
-    python DB/DB_server.py
-
-Mobile UI:  http://<LAPTOP_LOCAL_IP>:5050
-Pi client:  http://<LAPTOP_LOCAL_IP>:5050/parts
+    pip install flask
+    python server.py
+ 
+The Raspi sends requests to http://<LAPTOP_LOCAL_IP>:5050
+Find your laptop's local IP with: ipconfig (Windows) or ifconfig / ip a (Mac/Linux)
 """
-
-from datetime import datetime, timezone
-from pathlib import Path
-
-from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
+ 
+from flask import Flask, request, jsonify
 import json
-
-ROOT = Path(__file__).resolve().parent.parent
-
-app = Flask(__name__, static_folder=str(ROOT / "ui"), static_url_path="")
-CORS(app)
-
-DB_PATH = ROOT / "parts_db.json"
-UI_PATH = ROOT / "ui"
-
+from pathlib import Path
+ 
+app = Flask(__name__)
+DB_PATH = Path("parts_db.json")
+ 
 VALID_STATUSES = {"passed", "defect", "critical", "pending"}
-STATUS_LABELS = {
-    "passed": "Good",
-    "defect": "Defective",
-    "critical": "Critical Defect",
-    "pending": "Pending Inspection",
-}
-
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def default_db() -> dict:
-    return {
-        "parts": {
-            "QR-TYT-00001": {"status": "passed"},
-            "QR-TYT-00002": {"status": "defect"},
-            "QR-TYT-00003": {"status": "critical"},
-            "QR-TYT-00004": {"status": "pending"},
-        },
-        "last_updated": utc_now(),
-    }
-
-
+ 
+ 
 def load_db() -> dict:
     if not DB_PATH.exists():
-        db = default_db()
-        save_db(db)
-        return db
+        return {"parts": {}}
     with open(DB_PATH, "r") as f:
-        db = json.load(f)
-    if "parts" not in db:
-        db["parts"] = {}
-    if "last_updated" not in db:
-        db["last_updated"] = utc_now()
-    return db
-
-
+        return json.load(f)
+ 
+ 
 def save_db(db: dict) -> None:
-    db["last_updated"] = utc_now()
     with open(DB_PATH, "w") as f:
         json.dump(db, f, indent=2)
-
-
-def normalize_qr_code(raw: str) -> str:
-    value = raw.strip().upper()
-    if value.isdigit():
-        return f"QR-TYT-{int(value):05d}"
-    if value.startswith("QR-TYT-"):
-        suffix = value.split("-")[-1]
-        if suffix.isdigit():
-            return f"QR-TYT-{int(suffix):05d}"
-    return value
-
-
-def part_payload(qr_code: str, status: str) -> dict:
-    return {
-        "qr_code": qr_code,
-        "status": status,
-        "label": STATUS_LABELS.get(status, status.title()),
-        "is_good": status == "passed",
-        "is_bad": status in {"defect", "critical"},
-    }
-
-
-@app.route("/")
-def serve_ui():
-    return send_from_directory(UI_PATH, "index.html")
-
-
-@app.route("/assets/<path:filename>")
-def serve_assets(filename):
-    return send_from_directory(UI_PATH / "assets", filename)
-
-
-@app.route("/health", methods=["GET"])
-def health():
-    db = load_db()
-    return jsonify({"ok": True, "last_updated": db.get("last_updated"), "part_count": len(db["parts"])}), 200
-
-
+ 
+ 
+# ── GET /part/<qr_code> ──────────────────────────────────────────
+# Returns the status of a single part.
+# Example: GET http://laptop-ip:5050/part/QR-TYT-00001
 @app.route("/part/<qr_code>", methods=["GET"])
 def get_part(qr_code):
     db = load_db()
-    normalized = normalize_qr_code(qr_code)
-    part = db["parts"].get(normalized)
+    part = db["parts"].get(qr_code)
     if not part:
         return jsonify({"error": "Part not found"}), 404
-    return jsonify(part_payload(normalized, part["status"])), 200
-
-
+    return jsonify({"qr_code": qr_code, "status": part["status"]}), 200
+ 
+ 
+# ── POST /part ───────────────────────────────────────────────────
+# Creates or updates a part entry.
+# Body: { "qr_code": "QR-TYT-00005", "status": "defect" }
 @app.route("/part", methods=["POST"])
 def upsert_part():
-    data = request.get_json(silent=True) or {}
-
-    qr_code = normalize_qr_code(data.get("qr_code", ""))
-    status = data.get("status", "").strip().lower()
-
+    data = request.get_json()
+ 
+    qr_code = data.get("qr_code", "").strip()
+    status  = data.get("status", "").strip()
+ 
     if not qr_code:
         return jsonify({"error": "Missing qr_code"}), 400
     if status not in VALID_STATUSES:
-        return jsonify({"error": f"Invalid status. Must be one of {sorted(VALID_STATUSES)}"}), 400
-
+        return jsonify({"error": f"Invalid status. Must be one of {VALID_STATUSES}"}), 400
+ 
     db = load_db()
     db["parts"][qr_code] = {"status": status}
     save_db(db)
-
-    print(f"[DB] {qr_code} -> {status}")
-    return jsonify({**part_payload(qr_code, status), "last_updated": db["last_updated"]}), 200
-
-
+ 
+    print(f"[DB] {qr_code} → {status}")
+    return jsonify({"qr_code": qr_code, "status": status}), 200
+ 
+ 
+# ── GET /parts ───────────────────────────────────────────────────
+# Returns the full database.
 @app.route("/parts", methods=["GET"])
 def get_all_parts():
     db = load_db()
-    parts = {
-        qr_code: part_payload(qr_code, part["status"])
-        for qr_code, part in db["parts"].items()
-    }
-    return jsonify({"parts": parts, "last_updated": db["last_updated"]}), 200
-
-
-@app.route("/sync", methods=["GET"])
-def sync_parts():
-    """Lightweight endpoint for Raspberry Pi polling."""
-    db = load_db()
-    since = request.args.get("since")
-    last_updated = db.get("last_updated")
-    changed = since != last_updated if since else True
-    return jsonify(
-        {
-            "changed": changed,
-            "last_updated": last_updated,
-            "parts": db["parts"] if changed else {},
-        }
-    ), 200
-
-
+    return jsonify(db["parts"]), 200
+ 
+ 
 if __name__ == "__main__":
-    load_db()
-    print("Toyota QR Control UI: http://0.0.0.0:5050")
-    app.run(host="0.0.0.0", port=5050, debug=False)
+    # host="0.0.0.0" makes it reachable on your local network, not just localhost
+    app.run(host="0.0.0.0", port=5050, debug=True)
+ 
